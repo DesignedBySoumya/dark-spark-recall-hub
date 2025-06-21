@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Calendar, Shuffle, Star, Edit, Trash2 } from "lucide-react";
-import { useFlashcardStore } from "@/store/flashcardStore";
+import { useFlashcardStore, Flashcard } from "@/store/flashcardStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -11,21 +11,21 @@ const OrganizeStage = () => {
   const [viewMode, setViewMode] = useState<'subject' | 'week' | 'all'>('all');
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
 
-  const groupedCards = () => {
+  const groupedCards = (): Record<string, Flashcard[]> => {
     if (viewMode === 'subject') {
       return cards.reduce((acc, card) => {
         const subject = card.subject || 'Uncategorized';
         if (!acc[subject]) acc[subject] = [];
         acc[subject].push(card);
         return acc;
-      }, {} as Record<string, typeof cards>);
+      }, {} as Record<string, Flashcard[]>);
     } else if (viewMode === 'week') {
       return cards.reduce((acc, card) => {
         const week = card.week || 'No Week';
         if (!acc[week]) acc[week] = [];
         acc[week].push(card);
         return acc;
-      }, {} as Record<string, typeof cards>);
+      }, {} as Record<string, Flashcard[]>);
     }
     return { 'All Cards': cards };
   };
