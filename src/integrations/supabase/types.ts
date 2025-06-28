@@ -9,7 +9,162 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      flashcards: {
+        Row: {
+          answer: string
+          correct_count: number | null
+          created_at: string | null
+          difficulty: string | null
+          id: string
+          incorrect_count: number | null
+          is_starred: boolean | null
+          last_reviewed: string | null
+          next_review: string | null
+          question: string
+          subject: string | null
+          updated_at: string | null
+          user_id: string
+          week: string | null
+        }
+        Insert: {
+          answer: string
+          correct_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          incorrect_count?: number | null
+          is_starred?: boolean | null
+          last_reviewed?: string | null
+          next_review?: string | null
+          question: string
+          subject?: string | null
+          updated_at?: string | null
+          user_id: string
+          week?: string | null
+        }
+        Update: {
+          answer?: string
+          correct_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          incorrect_count?: number | null
+          is_starred?: boolean | null
+          last_reviewed?: string | null
+          next_review?: string | null
+          question?: string
+          subject?: string | null
+          updated_at?: string | null
+          user_id?: string
+          week?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          accuracy_percentage: number | null
+          correct_answers: number | null
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          incorrect_answers: number | null
+          session_date: string | null
+          total_cards: number | null
+          user_id: string
+        }
+        Insert: {
+          accuracy_percentage?: number | null
+          correct_answers?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          incorrect_answers?: number | null
+          session_date?: string | null
+          total_cards?: number | null
+          user_id: string
+        }
+        Update: {
+          accuracy_percentage?: number | null
+          correct_answers?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          incorrect_answers?: number | null
+          session_date?: string | null
+          total_cards?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          cards_mastered: number | null
+          created_at: string | null
+          current_streak: number | null
+          id: string
+          last_study_date: string | null
+          level: number | null
+          longest_streak: number | null
+          points: number | null
+          total_cards: number | null
+          total_study_time_minutes: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cards_mastered?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_study_date?: string | null
+          level?: number | null
+          longest_streak?: number | null
+          points?: number | null
+          total_cards?: number | null
+          total_study_time_minutes?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cards_mastered?: number | null
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_study_date?: string | null
+          level?: number | null
+          longest_streak?: number | null
+          points?: number | null
+          total_cards?: number | null
+          total_study_time_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
