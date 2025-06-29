@@ -7,70 +7,39 @@ import { toast } from 'sonner';
 
 export const useSupabaseSync = () => {
   const { user } = useAuth();
-  const { cards, addCard, updateCard, deleteCard } = useFlashcardStore();
-
-  // Sync local cards to Supabase when user logs in
-  useEffect(() => {
-    if (!user) return;
-
-    const syncLocalCardsToSupabase = async () => {
-      try {
-        // Get existing cards from Supabase
-        const { data: existingCards } = await supabase
-          .from('flashcards')
-          .select('*')
-          .eq('user_id', user.id);
-
-        // If no cards in Supabase but we have local cards, sync them
-        if ((!existingCards || existingCards.length === 0) && cards.length > 0) {
-          console.log('Syncing local cards to Supabase...');
-          
-          for (const card of cards) {
-            await supabase.from('flashcards').insert({
-              user_id: user.id,
-              question: card.question,
-              answer: card.answer,
-              subject: card.subject,
-              week: card.week,
-              difficulty: card.difficulty,
-              correct_count: card.correctCount,
-              incorrect_count: card.incorrectCount,
-              is_starred: card.isStarred,
-              last_reviewed: card.lastReviewed ? new Date(card.lastReviewed).toISOString() : null,
-              next_review: card.nextReview ? new Date(card.nextReview).toISOString() : null,
-            });
-          }
-          
-          toast.success('Local cards synced to your account!');
-        }
-      } catch (error) {
-        console.error('Error syncing cards:', error);
-        toast.error('Failed to sync cards');
-      }
-    };
-
-    syncLocalCardsToSupabase();
-  }, [user, cards]);
+  const { cards, addCard, setStage } = useFlashcardStore();
 
   // Load cards from Supabase when user logs in
   useEffect(() => {
     if (!user) return;
 
+    let isMounted = true;
+
     const loadCardsFromSupabase = async () => {
       try {
+        console.log('Loading cards from Supabase for user:', user.id);
+        
         const { data: supabaseCards, error } = await supabase
           .from('flashcards')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error loading cards:', error);
+          return;
+        }
+
+        if (!isMounted) return;
+
+        console.log('Loaded cards from Supabase:', supabaseCards?.length || 0);
 
         if (supabaseCards && supabaseCards.length > 0) {
-          // Clear local store and load from Supabase
+          // Clear local store first
           const store = useFlashcardStore.getState();
           store.cards = [];
           
+          // Add each card from Supabase
           supabaseCards.forEach(card => {
             addCard({
               question: card.question,
@@ -84,13 +53,82 @@ export const useSupabaseSync = () => {
           });
         }
       } catch (error) {
-        console.error('Error loading cards:', error);
-        toast.error('Failed to load your cards');
+        console.error('Error in loadCardsFromSupabase:', error);
       }
     };
 
     loadCardsFromSupabase();
-  }, [user]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]); // Only depend on user.id to prevent loops
+
+  // Sync local cards to Supabase when user logs in (only if no cards exist in Supabase)
+  useEffect(() => {
+    if (!user || cards.length === 0) return;
+
+    let isMounted = true;
+
+    const syncLocalCardsToSupabase = async () => {
+      try {
+        console.log('Checking if sync is needed...');
+        
+        // Check if user already has cards in Supabase
+        const { data: existingCards, error: fetchError } = await supabase
+          .from('flashcards')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (fetchError) {
+          console.error('Error checking existing cards:', fetchError);
+          return;
+        }
+
+        if (!isMounted) return;
+
+        // Only sync if no cards exist in Supabase
+        if (!existingCards || existingCards.length === 0) {
+          console.log('Syncing local cards to Supabase...');
+          
+          for (const card of cards) {
+            const { error: insertError } = await supabase.from('flashcards').insert({
+              user_id: user.id,
+              question: card.question,
+              answer: card.answer,
+              subject: card.subject,
+              week: card.week,
+              difficulty: card.difficulty,
+              correct_count: card.correctCount,
+              incorrect_count: card.incorrectCount,
+              is_starred: card.isStarred,
+              last_reviewed: card.lastReviewed ? new Date(card.lastReviewed).toISOString() : null,
+              next_review: card.nextReview ? new Date(card.nextReview).toISOString() : null,
+            });
+
+            if (insertError) {
+              console.error('Error inserting card:', insertError);
+            }
+          }
+          
+          if (isMounted) {
+            toast.success('Local cards synced to your account!');
+          }
+        }
+      } catch (error) {
+        console.error('Error in syncLocalCardsToSupabase:', error);
+      }
+    };
+
+    // Add a delay to prevent race conditions
+    const timeoutId = setTimeout(syncLocalCardsToSupabase, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [user?.id, cards.length]); // Depend on cards.length to trigger when cards are available
 
   // Save study session to Supabase
   const saveStudySession = async (session: {

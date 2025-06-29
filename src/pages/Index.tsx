@@ -1,8 +1,7 @@
 
-import { useEffect } from "react";
-import { useFlashcardStore } from "@/store/flashcardStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
+import { useFlashcardStore } from "@/store/flashcardStore";
 import { Button } from "@/components/ui/button";
 import { LogIn, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -15,25 +14,38 @@ import ReviewTimerStage from "@/components/flashcards/ReviewTimerStage";
 
 const Index = () => {
   const { stage } = useFlashcardStore();
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   
   // Initialize Supabase sync
   useSupabaseSync();
 
   const renderStage = () => {
-    switch (stage) {
-      case 1:
-        return <SetupStage />;
-      case 2:
-        return <OrganizeStage />;
-      case 3:
-        return <PracticeStage />;
-      case 4:
-        return <ReviewTimerStage />;
-      default:
-        return <SetupStage />;
+    try {
+      switch (stage) {
+        case 1:
+          return <SetupStage />;
+        case 2:
+          return <OrganizeStage />;
+        case 3:
+          return <PracticeStage />;
+        case 4:
+          return <ReviewTimerStage />;
+        default:
+          return <SetupStage />;
+      }
+    } catch (error) {
+      console.error('Error rendering stage:', error);
+      return <SetupStage />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0A0E27] flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0E27]">
