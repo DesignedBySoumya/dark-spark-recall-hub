@@ -10,11 +10,21 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('Request received:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight');
     return new Response(null, { 
       status: 200,
       headers: corsHeaders 
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
@@ -38,13 +48,11 @@ serve(async (req) => {
       console.log('Processing file:', file.name, file.type);
       
       if (file.type === 'application/pdf') {
-        // For PDF files, we'll extract text content
         const fileBuffer = await file.arrayBuffer();
         const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
         
         console.log('Calling OpenAI for PDF processing...');
         
-        // Use OpenAI to extract and understand PDF content
         const pdfResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -79,7 +87,7 @@ serve(async (req) => {
         });
 
         if (!pdfResponse.ok) {
-          throw new Error(`OpenAI API error: ${pdfResponse.statusText}`);
+          throw new Error(`OpenAI PDF API error: ${pdfResponse.statusText}`);
         }
 
         const pdfData = await pdfResponse.json();
@@ -87,7 +95,6 @@ serve(async (req) => {
         console.log('PDF content extracted successfully');
         
       } else if (file.type.startsWith('image/')) {
-        // For images, use vision capabilities
         const fileBuffer = await file.arrayBuffer();
         const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
         
@@ -127,7 +134,7 @@ serve(async (req) => {
         });
 
         if (!imageResponse.ok) {
-          throw new Error(`OpenAI API error: ${imageResponse.statusText}`);
+          throw new Error(`OpenAI Image API error: ${imageResponse.statusText}`);
         }
 
         const imageData = await imageResponse.json();
@@ -139,7 +146,6 @@ serve(async (req) => {
       }
       
     } else if (videoURL) {
-      // For video URLs, we'll extract the video ID and get transcript/summary
       console.log('Processing video URL:', videoURL);
       
       let videoId = '';
@@ -148,7 +154,6 @@ serve(async (req) => {
         videoId = urlParams.get('v') || videoURL.split('/').pop()?.split('?')[0] || '';
       }
       
-      // For now, we'll simulate content extraction from video
       extractedContent = `Educational content from video: ${videoURL}. This video covers important topics related to ${subject}. Key concepts include fundamental principles, practical applications, and essential knowledge for understanding the subject matter.`;
       console.log('Video content simulated');
     }
@@ -159,7 +164,6 @@ serve(async (req) => {
 
     console.log('Generating flashcards from extracted content...');
 
-    // Generate flashcards from extracted content
     const flashcardResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -184,24 +188,22 @@ serve(async (req) => {
     });
 
     if (!flashcardResponse.ok) {
-      throw new Error(`OpenAI API error: ${flashcardResponse.statusText}`);
+      throw new Error(`OpenAI Flashcard API error: ${flashcardResponse.statusText}`);
     }
 
     const flashcardData = await flashcardResponse.json();
     let flashcards;
 
     try {
-      // Try to parse as JSON first
       const content = flashcardData.choices[0].message.content;
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         flashcards = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('No JSON array found');
+        throw new Error('No JSON array found in response');
       }
     } catch (parseError) {
       console.log('Failed to parse JSON, using fallback method');
-      // Fallback: create flashcards from the raw response
       flashcards = [
         {
           question: `What are the main concepts covered in this ${subject} content?`,
@@ -218,7 +220,6 @@ serve(async (req) => {
       ];
     }
 
-    // Ensure all flashcards have required fields
     const processedFlashcards = flashcards.map((card: any) => ({
       question: card.question || 'Generated question',
       answer: card.answer || 'Generated answer',
