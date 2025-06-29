@@ -10,15 +10,27 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
+    console.log('Starting flashcard generation...');
+    
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const videoURL = formData.get('videoURL') as string;
     const subject = formData.get('subject') as string || 'General';
+
+    console.log('Form data received:', { 
+      hasFile: !!file, 
+      videoURL, 
+      subject 
+    });
 
     let extractedContent = '';
 
@@ -29,6 +41,8 @@ serve(async (req) => {
         // For PDF files, we'll extract text content
         const fileBuffer = await file.arrayBuffer();
         const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+        
+        console.log('Calling OpenAI for PDF processing...');
         
         // Use OpenAI to extract and understand PDF content
         const pdfResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -64,12 +78,20 @@ serve(async (req) => {
           }),
         });
 
+        if (!pdfResponse.ok) {
+          throw new Error(`OpenAI API error: ${pdfResponse.statusText}`);
+        }
+
         const pdfData = await pdfResponse.json();
         extractedContent = pdfData.choices[0].message.content;
+        console.log('PDF content extracted successfully');
+        
       } else if (file.type.startsWith('image/')) {
         // For images, use vision capabilities
         const fileBuffer = await file.arrayBuffer();
         const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+        
+        console.log('Calling OpenAI for image processing...');
         
         const imageResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -104,9 +126,18 @@ serve(async (req) => {
           }),
         });
 
+        if (!imageResponse.ok) {
+          throw new Error(`OpenAI API error: ${imageResponse.statusText}`);
+        }
+
         const imageData = await imageResponse.json();
         extractedContent = imageData.choices[0].message.content;
+        console.log('Image content extracted successfully');
+        
+      } else {
+        throw new Error(`Unsupported file type: ${file.type}`);
       }
+      
     } else if (videoURL) {
       // For video URLs, we'll extract the video ID and get transcript/summary
       console.log('Processing video URL:', videoURL);
@@ -119,11 +150,14 @@ serve(async (req) => {
       
       // For now, we'll simulate content extraction from video
       extractedContent = `Educational content from video: ${videoURL}. This video covers important topics related to ${subject}. Key concepts include fundamental principles, practical applications, and essential knowledge for understanding the subject matter.`;
+      console.log('Video content simulated');
     }
 
     if (!extractedContent) {
       throw new Error('Could not extract content from the provided source');
     }
+
+    console.log('Generating flashcards from extracted content...');
 
     // Generate flashcards from extracted content
     const flashcardResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -148,6 +182,10 @@ serve(async (req) => {
         temperature: 0.7
       }),
     });
+
+    if (!flashcardResponse.ok) {
+      throw new Error(`OpenAI API error: ${flashcardResponse.statusText}`);
+    }
 
     const flashcardData = await flashcardResponse.json();
     let flashcards;
@@ -188,13 +226,17 @@ serve(async (req) => {
       difficulty: card.difficulty || 'medium'
     }));
 
-    console.log('Generated flashcards:', processedFlashcards.length);
+    console.log('Generated flashcards successfully:', processedFlashcards.length);
 
     return new Response(JSON.stringify({ 
       flashcards: processedFlashcards,
       extractedContent: extractedContent.substring(0, 500) + '...' 
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
+      },
     });
 
   } catch (error) {
@@ -204,7 +246,10 @@ serve(async (req) => {
       details: error.message 
     }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
+      },
     });
   }
 });
