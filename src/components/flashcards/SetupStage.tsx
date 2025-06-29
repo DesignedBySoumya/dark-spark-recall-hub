@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const SetupStage = () => {
-  const { addCard, setStage, generateCardsFromContent } = useFlashcardStore();
+  const { addCard, setStage } = useFlashcardStore();
   const [file, setFile] = useState<File | null>(null);
   const [videoURL, setVideoURL] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -25,21 +27,97 @@ const SetupStage = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
+      // Check file size (limit to 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      
+      // Check file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'];
+      if (!allowedTypes.includes(selectedFile.type)) {
+        toast.error('Please upload a PDF, image, or text file');
+        return;
+      }
+      
       setFile(selectedFile);
+      toast.success(`File "${selectedFile.name}" selected successfully`);
     }
   };
 
   const handleGenerateFromContent = async () => {
-    if (!file && !videoURL) return;
+    if (!file && !videoURL) {
+      toast.error('Please upload a file or enter a video URL');
+      return;
+    }
     
     setIsGenerating(true);
     
-    // Simulate AI processing
-    setTimeout(() => {
-      generateCardsFromContent({ file, videoURL });
-      setIsGenerating(false);
+    try {
+      const formData = new FormData();
+      
+      if (file) {
+        formData.append('file', file);
+      }
+      
+      if (videoURL) {
+        formData.append('videoURL', videoURL);
+      }
+      
+      formData.append('subject', manualCard.subject || 'General');
+
+      console.log('Calling generate-flashcards function...');
+      
+      const { data, error } = await supabase.functions.invoke('generate-flashcards', {
+        body: formData,
+      });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate flashcards');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      const { flashcards, extractedContent } = data;
+      
+      if (!flashcards || flashcards.length === 0) {
+        throw new Error('No flashcards were generated from the content');
+      }
+
+      console.log('Generated flashcards:', flashcards);
+      
+      // Add each generated flashcard to the store
+      flashcards.forEach((card: any) => {
+        addCard({
+          question: card.question,
+          answer: card.answer,
+          subject: card.subject,
+          difficulty: card.difficulty as 'easy' | 'medium' | 'hard',
+        });
+      });
+
+      toast.success(`Successfully generated ${flashcards.length} flashcards!`);
+      
+      // Clear the form
+      setFile(null);
+      setVideoURL("");
+      
+      // Reset file input
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
+      // Move to next stage
       setStage(2);
-    }, 2000);
+      
+    } catch (error) {
+      console.error('Error generating flashcards:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate flashcards. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleAddManualCard = () => {
@@ -52,6 +130,9 @@ const SetupStage = () => {
         week: "",
         difficulty: "medium",
       });
+      toast.success('Flashcard added successfully!');
+    } else {
+      toast.error('Please fill in both question and answer fields');
     }
   };
 
@@ -86,6 +167,19 @@ const SetupStage = () => {
           </div>
 
           <div className="space-y-6">
+            {/* Subject Input for AI Generation */}
+            <div>
+              <label className="block text-sm font-medium text-[#93A5CF] mb-2">
+                Subject (optional)
+              </label>
+              <Input
+                placeholder="e.g., Math, Science, History..."
+                value={manualCard.subject}
+                onChange={(e) => setManualCard({ ...manualCard, subject: e.target.value })}
+                className="bg-[#0A0E27] border-[#2563EB]/30"
+              />
+            </div>
+
             {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-[#93A5CF] mb-2">
@@ -94,7 +188,7 @@ const SetupStage = () => {
               <div className="relative">
                 <input
                   type="file"
-                  accept="image/*,application/pdf,.txt,.docx"
+                  accept="image/*,application/pdf,.txt"
                   onChange={handleFileUpload}
                   className="hidden"
                   id="file-upload"
@@ -107,6 +201,9 @@ const SetupStage = () => {
                     <Upload className="mx-auto mb-2 text-[#2563EB]" size={32} />
                     <p className="text-sm text-[#93A5CF]">
                       {file ? file.name : "Click to upload or drag and drop"}
+                    </p>
+                    <p className="text-xs text-[#93A5CF]/70 mt-1">
+                      PDF, PNG, JPG, or TXT (max 10MB)
                     </p>
                   </div>
                 </label>

@@ -44,7 +44,6 @@ interface FlashcardStore {
   updateStreak: () => void;
   addPoints: (points: number) => void;
   setNextReviewTime: (time: number) => void;
-  generateCardsFromContent: (content: any) => void;
   clearCards: () => void;
 }
 
@@ -240,36 +239,6 @@ export const useFlashcardStore = create<FlashcardStore>()(
 
       setNextReviewTime: (time) => {
         set({ nextReviewTime: time });
-      },
-
-      generateCardsFromContent: (content) => {
-        try {
-          // Simulate AI generation
-          const sampleCards = [
-            {
-              question: "What is the main concept discussed?",
-              answer: "The main concept relates to the uploaded content analysis.",
-              subject: "General",
-              difficulty: 'medium' as const,
-            },
-            {
-              question: "What are the key points to remember?",
-              answer: "Key points include the primary themes and supporting details.",
-              subject: "General",
-              difficulty: 'medium' as const,
-            },
-            {
-              question: "How does this relate to broader topics?",
-              answer: "This connects to wider subject areas through shared principles.",
-              subject: "General",
-              difficulty: 'hard' as const,
-            },
-          ];
-
-          sampleCards.forEach(card => get().addCard(card));
-        } catch (error) {
-          console.error('Error generating cards from content:', error);
-        }
       },
     }),
     {
