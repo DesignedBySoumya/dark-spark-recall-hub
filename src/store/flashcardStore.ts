@@ -44,7 +44,7 @@ interface FlashcardStore {
   updateStreak: () => void;
   addPoints: (points: number) => void;
   setNextReviewTime: (time: number) => void;
-  clearCards: () => void;
+  generateCardsFromContent: (content: any) => void;
 }
 
 export const useFlashcardStore = create<FlashcardStore>()(
@@ -64,188 +64,156 @@ export const useFlashcardStore = create<FlashcardStore>()(
         total: 0,
       },
 
-      setStage: (stage) => {
-        console.log('Setting stage to:', stage);
-        set({ stage });
-      },
+      setStage: (stage) => set({ stage }),
 
       addCard: (cardData) => {
-        try {
-          const newCard: Flashcard = {
-            ...cardData,
-            id: crypto.randomUUID(),
-            correctCount: 0,
-            incorrectCount: 0,
-            isStarred: false,
-          };
-          console.log('Adding card:', newCard.question);
-          set((state) => ({ cards: [...state.cards, newCard] }));
-        } catch (error) {
-          console.error('Error adding card:', error);
-        }
+        const newCard: Flashcard = {
+          ...cardData,
+          id: crypto.randomUUID(),
+          correctCount: 0,
+          incorrectCount: 0,
+          isStarred: false,
+        };
+        set((state) => ({ cards: [...state.cards, newCard] }));
       },
 
       updateCard: (id, updates) => {
-        try {
-          set((state) => ({
-            cards: state.cards.map((card) =>
-              card.id === id ? { ...card, ...updates } : card
-            ),
-          }));
-        } catch (error) {
-          console.error('Error updating card:', error);
-        }
+        set((state) => ({
+          cards: state.cards.map((card) =>
+            card.id === id ? { ...card, ...updates } : card
+          ),
+        }));
       },
 
       deleteCard: (id) => {
-        try {
-          set((state) => ({
-            cards: state.cards.filter((card) => card.id !== id),
-          }));
-        } catch (error) {
-          console.error('Error deleting card:', error);
-        }
-      },
-
-      clearCards: () => {
-        console.log('Clearing all cards');
-        set({ cards: [] });
+        set((state) => ({
+          cards: state.cards.filter((card) => card.id !== id),
+        }));
       },
 
       markCardCorrect: (id) => {
-        try {
-          const state = get();
-          const card = state.cards.find(c => c.id === id);
-          if (!card) return;
-          
-          const now = Date.now();
-          const nextReview = now + (5 * 24 * 60 * 60 * 1000); // 5 days later
-          
-          state.updateCard(id, {
-            correctCount: card.correctCount + 1,
-            lastReviewed: now,
-            nextReview,
-          });
-          state.addPoints(30);
-          set((state) => ({
-            studySession: {
-              ...state.studySession,
-              correct: state.studySession.correct + 1,
-              total: state.studySession.total + 1,
-            },
-          }));
-        } catch (error) {
-          console.error('Error marking card correct:', error);
-        }
+        const state = get();
+        const now = Date.now();
+        const nextReview = now + (5 * 24 * 60 * 60 * 1000); // 5 days later
+        
+        state.updateCard(id, {
+          correctCount: state.cards.find(c => c.id === id)!.correctCount + 1,
+          lastReviewed: now,
+          nextReview,
+        });
+        state.addPoints(30);
+        set((state) => ({
+          studySession: {
+            ...state.studySession,
+            correct: state.studySession.correct + 1,
+            total: state.studySession.total + 1,
+          },
+        }));
       },
 
       markCardIncorrect: (id) => {
-        try {
-          const state = get();
-          const card = state.cards.find(c => c.id === id);
-          if (!card) return;
-          
-          const now = Date.now();
-          const nextReview = now + (24 * 60 * 60 * 1000); // 1 day later
-          
-          state.updateCard(id, {
-            incorrectCount: card.incorrectCount + 1,
-            lastReviewed: now,
-            nextReview,
-          });
-          state.addPoints(-10);
-          set((state) => ({
-            studySession: {
-              ...state.studySession,
-              incorrect: state.studySession.incorrect + 1,
-              total: state.studySession.total + 1,
-            },
-          }));
-        } catch (error) {
-          console.error('Error marking card incorrect:', error);
-        }
+        const state = get();
+        const now = Date.now();
+        const nextReview = now + (24 * 60 * 60 * 1000); // 1 day later
+        
+        state.updateCard(id, {
+          incorrectCount: state.cards.find(c => c.id === id)!.incorrectCount + 1,
+          lastReviewed: now,
+          nextReview,
+        });
+        state.addPoints(-10);
+        set((state) => ({
+          studySession: {
+            ...state.studySession,
+            incorrect: state.studySession.incorrect + 1,
+            total: state.studySession.total + 1,
+          },
+        }));
       },
 
       toggleStar: (id) => {
-        try {
-          const state = get();
-          const card = state.cards.find(c => c.id === id);
-          if (card) {
-            state.updateCard(id, { isStarred: !card.isStarred });
-          }
-        } catch (error) {
-          console.error('Error toggling star:', error);
+        const state = get();
+        const card = state.cards.find(c => c.id === id);
+        if (card) {
+          state.updateCard(id, { isStarred: !card.isStarred });
         }
       },
 
       nextCard: () => {
-        try {
-          set((state) => ({
-            currentCardIndex: (state.currentCardIndex + 1) % Math.max(state.cards.length, 1),
-          }));
-        } catch (error) {
-          console.error('Error going to next card:', error);
-        }
+        set((state) => ({
+          currentCardIndex: (state.currentCardIndex + 1) % state.cards.length,
+        }));
       },
 
       resetSession: () => {
-        try {
-          set({
-            currentCardIndex: 0,
-            studySession: {
-              correct: 0,
-              incorrect: 0,
-              total: 0,
-            },
-          });
-        } catch (error) {
-          console.error('Error resetting session:', error);
-        }
+        set({
+          currentCardIndex: 0,
+          studySession: {
+            correct: 0,
+            incorrect: 0,
+            total: 0,
+          },
+        });
       },
 
       updateStreak: () => {
-        try {
-          const today = new Date().toDateString();
-          const state = get();
-          const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
-          
-          if (state.lastStudyDate === yesterday) {
-            set((state) => ({ 
-              streak: state.streak + 1,
-              lastStudyDate: today 
-            }));
-          } else if (state.lastStudyDate !== today) {
-            set({ streak: 1, lastStudyDate: today });
-          }
-        } catch (error) {
-          console.error('Error updating streak:', error);
+        const today = new Date().toDateString();
+        const state = get();
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+        
+        if (state.lastStudyDate === yesterday) {
+          set((state) => ({ 
+            streak: state.streak + 1,
+            lastStudyDate: today 
+          }));
+        } else if (state.lastStudyDate !== today) {
+          set({ streak: 1, lastStudyDate: today });
         }
       },
 
       addPoints: (pointsToAdd) => {
-        try {
-          set((state) => {
-            const newPoints = Math.max(0, state.points + pointsToAdd);
-            const newLevel = Math.floor(newPoints / 500) + 1;
-            return { 
-              points: newPoints,
-              level: newLevel
-            };
-          });
-        } catch (error) {
-          console.error('Error adding points:', error);
-        }
+        set((state) => {
+          const newPoints = Math.max(0, state.points + pointsToAdd);
+          const newLevel = Math.floor(newPoints / 500) + 1;
+          return { 
+            points: newPoints,
+            level: newLevel
+          };
+        });
       },
 
       setNextReviewTime: (time) => {
         set({ nextReviewTime: time });
       },
+
+      generateCardsFromContent: (content) => {
+        // Simulate AI generation
+        const sampleCards = [
+          {
+            question: "What is the main concept discussed?",
+            answer: "The main concept relates to the uploaded content analysis.",
+            subject: "General",
+            difficulty: 'medium' as const,
+          },
+          {
+            question: "What are the key points to remember?",
+            answer: "Key points include the primary themes and supporting details.",
+            subject: "General",
+            difficulty: 'medium' as const,
+          },
+          {
+            question: "How does this relate to broader topics?",
+            answer: "This connects to wider subject areas through shared principles.",
+            subject: "General",
+            difficulty: 'hard' as const,
+          },
+        ];
+
+        sampleCards.forEach(card => get().addCard(card));
+      },
     }),
     {
       name: 'flashcard-storage',
-      onRehydrateStorage: () => (state) => {
-        console.log('Flashcard store rehydrated with', state?.cards?.length || 0, 'cards');
-      },
     }
   )
 );
